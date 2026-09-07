@@ -137,7 +137,20 @@ Error FileAccessUnix::open_internal(const String &p_path, int p_mode_flags) {
 				}
 			}
 		}
-		save_path = is_link ? link : path;
+		const String target = is_link ? link : path;
+		// Refuse what a plain fopen(target, "wb") would refuse. POSIX rename()
+		// only needs write permission on the directory, so without this check
+		// safe-save silently replaces files the user cannot write (e.g. files a
+		// locking VCS keeps read-only). access(W_OK) is used on purpose:
+		// FileAccess::_get_read_only_attribute() is UF_IMMUTABLE on BSD/macOS and
+		// always false on Linux, so it is not the right predicate here. Advisory
+		// pre-check only; the write itself remains the authority.
+		const CharString target_cs = target.utf8();
+		if (access(target_cs.get_data(), F_OK) == 0 && access(target_cs.get_data(), W_OK) != 0) {
+			last_error = ERR_FILE_CANT_OPEN;
+			return ERR_FILE_CANT_OPEN;
+		}
+		save_path = target;
 
 		// Create a temporary file in the same directory as the target file.
 		path = path + "-XXXXXX";

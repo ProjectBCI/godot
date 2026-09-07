@@ -195,6 +195,14 @@ Error FileAccessWindows::open_internal(const String &p_path, int p_mode_flags) {
 #endif
 
 	if (is_backup_save_enabled() && p_mode_flags == WRITE) {
+		// Refuse an existing read-only target up front, with the same error the
+		// non-backup path reports for it (EACCES -> ERR_FILE_CANT_OPEN), instead of
+		// writing a temp file and then spinning in the rename retry loop in
+		// _close(). Advisory pre-check only; the rename remains the authority.
+		if (file_attr != INVALID_FILE_ATTRIBUTES && (file_attr & FILE_ATTRIBUTE_READONLY)) {
+			last_error = ERR_FILE_CANT_OPEN;
+			return ERR_FILE_CANT_OPEN;
+		}
 		save_path = path;
 		// Create a temporary file in the same directory as the target file.
 		// Note: do not use GetTempFileNameW, it's not long path aware!
