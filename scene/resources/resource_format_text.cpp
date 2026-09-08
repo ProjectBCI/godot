@@ -707,6 +707,18 @@ Error ResourceLoaderText::load() {
 			}
 		}
 
+#ifdef TOOLS_ENABLED
+		// Property assignment above went through Object::set(), which marks the
+		// object edited. Loading is not editing: clear the flag, as the binary
+		// loader does. Otherwise every sub-resource stays "edited" and the
+		// editor's external-resource save pass rewrites the parent file.
+		// Only for resources this load actually assigned: a cached sub-resource
+		// that was reused untouched may carry a real unsaved edit.
+		if (do_assign) {
+			res->set_edited(false);
+		}
+#endif
+
 		if (missing_resource.is_valid()) {
 			missing_resource->set_recording_properties(false);
 		}
