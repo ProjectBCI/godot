@@ -34,11 +34,26 @@
 #include "core/io/dir_access.h"
 #include "core/io/file_access_compressed.h"
 #include "core/io/missing_resource.h"
+#include "core/io/resource_importer.h"
 #include "core/object/class_db.h"
 #include "core/object/script_language.h"
 #include "core/version.h"
 #include "scene/property_utils.h"
 #include "scene/resources/packed_scene.h"
+
+#ifdef TOOLS_ENABLED
+// Imported assets keep their UID in the .import sidecar, which many teams do
+// not version; recording it in a saved file makes that file differ per
+// workspace. Opt-in via project setting: resolve such references by path.
+// ResourceFormatImporter::recognize_path() is the engine's own "is imported"
+// test (it checks for the .import sidecar).
+static bool _omit_uid_for_imported(bool p_setting_enabled, const String &p_res_path) {
+	if (!p_setting_enabled || !ResourceFormatImporter::get_singleton()) {
+		return false;
+	}
+	return ResourceFormatImporter::get_singleton()->recognize_path(p_res_path);
+}
+#endif
 
 //#define print_bl(m_what) print_line(m_what)
 #define print_bl(m_what) (void)(m_what)
@@ -1366,6 +1381,11 @@ Error ResourceFormatLoaderBinary::rename_dependencies(const String &p_path, cons
 	//external resources
 	uint32_t ext_resources_size = f->get_32();
 	fw->store_32(ext_resources_size);
+
+#ifdef TOOLS_ENABLED
+	const bool omit_imported_uids = bool(GLOBAL_GET("editor/version_control/omit_uid_for_imported_resources"));
+#endif
+
 	for (uint32_t i = 0; i < ext_resources_size; i++) {
 		String type = get_ustring(f);
 		String path = get_ustring(f);
@@ -1403,6 +1423,11 @@ Error ResourceFormatLoaderBinary::rename_dependencies(const String &p_path, cons
 
 		if (using_uids) {
 			ResourceUID::ID uid = ResourceSaver::get_resource_id_for_path(full_path);
+#ifdef TOOLS_ENABLED
+			if (uid != ResourceUID::INVALID_ID && _omit_uid_for_imported(omit_imported_uids, full_path)) {
+				uid = ResourceUID::INVALID_ID;
+			}
+#endif
 			fw->store_64(uint64_t(uid));
 		}
 	}
@@ -2256,12 +2281,21 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const Ref<Re
 		save_order.write[E.value] = E.key;
 	}
 
+#ifdef TOOLS_ENABLED
+	const bool omit_imported_uids = bool(GLOBAL_GET("editor/version_control/omit_uid_for_imported_resources"));
+#endif
+
 	for (int i = 0; i < save_order.size(); i++) {
 		save_unicode_string(f, save_order[i]->get_save_class());
 		String res_path = save_order[i]->get_path();
 		res_path = relative_paths ? local_path.path_to_file(res_path) : res_path;
 		save_unicode_string(f, res_path);
 		ResourceUID::ID ruid = ResourceSaver::get_resource_id_for_path(save_order[i]->get_path(), false);
+#ifdef TOOLS_ENABLED
+		if (ruid != ResourceUID::INVALID_ID && _omit_uid_for_imported(omit_imported_uids, save_order[i]->get_path())) {
+			ruid = ResourceUID::INVALID_ID;
+		}
+#endif
 		f->store_64(uint64_t(ruid));
 	}
 	// save internal resource table

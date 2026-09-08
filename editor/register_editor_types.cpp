@@ -311,6 +311,7 @@ void register_editor_types() {
 
 	GLOBAL_DEF("editor/version_control/plugin_name", "");
 	GLOBAL_DEF("editor/version_control/autoload_on_startup", false);
+	GLOBAL_DEF("editor/version_control/omit_uid_for_imported_resources", false);
 
 	EditorInterface::create();
 	Engine::Singleton ei_singleton = Engine::Singleton("EditorInterface", EditorInterface::get_singleton());
