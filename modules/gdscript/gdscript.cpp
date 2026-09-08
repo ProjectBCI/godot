@@ -1031,13 +1031,24 @@ bool GDScript::_set(const StringName &p_name, const Variant &p_value) {
 					return false;
 				}
 			}
+			// A static variable's value is not part of the script's serialized
+			// state, so writing one must not make the editor resave the .gd in
+			// EditorNode::_save_external_resources(). Report it as transient
+			// rather than clearing the flag here: Object::set() set the flag
+			// before dispatching, and only it still knows what it was before.
 			if (likely(top->valid) && member->setter) {
 				const Variant *args = &value;
 				Callable::CallError err;
 				callp(member->setter, &args, 1, err);
+#ifdef TOOLS_ENABLED
+				_setv_transient = true;
+#endif
 				return err.error == Callable::CallError::CALL_OK;
 			} else {
 				top->static_variables.write[member->index] = value;
+#ifdef TOOLS_ENABLED
+				_setv_transient = true;
+#endif
 				return true;
 			}
 		}

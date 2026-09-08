@@ -232,7 +232,11 @@ void Object::_postinitialize() {
 
 void Object::set(const StringName &p_name, const Variant &p_value, bool *r_valid) {
 #ifdef TOOLS_ENABLED
-
+	// Set optimistically: which property this dispatches to is not known yet,
+	// and learning it would mean building a property list on a hot path. A
+	// _setv() override that handles a property outside the object's serialized
+	// state restores this through _setv_transient below.
+	const bool prev_edited = _edited;
 	_edited = true;
 #endif
 
@@ -300,11 +304,21 @@ void Object::set(const StringName &p_name, const Variant &p_value, bool *r_valid
 #endif
 
 	// Something inside the object... :|
+#ifdef TOOLS_ENABLED
+	_setv_transient = false;
+#endif
 	bool success = _setv(p_name, p_value);
 	if (success) {
 		if (r_valid) {
 			*r_valid = true;
 		}
+#ifdef TOOLS_ENABLED
+		if (_setv_transient) {
+			// Not serialized state; this set did not edit the object.
+			_edited = prev_edited;
+			_setv_transient = false;
+		}
+#endif
 		return;
 	}
 

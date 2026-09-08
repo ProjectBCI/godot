@@ -524,6 +524,13 @@ protected:
 	_ALWAYS_INLINE_ const ObjectGDExtension *_get_extension() const { return _extension; }
 	_ALWAYS_INLINE_ GDExtensionClassInstancePtr _get_extension_instance() const { return _extension_instance; }
 	virtual void _initialize_classv() { initialize_class(); }
+#ifdef TOOLS_ENABLED
+	// Set from _setv() when the property it just handled is not part of this
+	// object's serialized state, so Object::set() can undo the edited flag it
+	// set before it knew which property it was dispatching. Object::set()
+	// clears it before every _setv() call.
+	bool _setv_transient = false;
+#endif
 	virtual bool _setv(const StringName &p_name, const Variant &p_property) { return false; }
 	virtual bool _getv(const StringName &p_name, Variant &r_property) const { return false; }
 	virtual void _get_property_listv(List<PropertyInfo> *p_list, bool p_reversed) const {}
