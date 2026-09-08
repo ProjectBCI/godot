@@ -1035,9 +1035,19 @@ bool GDScript::_set(const StringName &p_name, const Variant &p_value) {
 				const Variant *args = &value;
 				Callable::CallError err;
 				callp(member->setter, &args, 1, err);
+#ifdef TOOLS_ENABLED
+				set_edited(false);
+#endif
 				return err.error == Callable::CallError::CALL_OK;
 			} else {
 				top->static_variables.write[member->index] = value;
+#ifdef TOOLS_ENABLED
+				// Object::set() flagged this script as edited before dispatching
+				// here. Static variable values are not part of the script's
+				// serialized state, so writing one must not make the editor
+				// resave the .gd in _save_external_resources().
+				set_edited(false);
+#endif
 				return true;
 			}
 		}
