@@ -991,6 +991,7 @@ void EditorNode::_notification(int p_what) {
 			editor_data.save_editor_external_data();
 			EditorSettings::get_singleton()->save_project_metadata();
 			FileAccess::set_file_close_fail_notify_callback(nullptr);
+			FileAccess::set_file_pre_write_notify_callback(nullptr);
 			log->deinit(); // Do not get messages anymore.
 			editor_data.clear_edited_scenes();
 			get_viewport()->disconnect("size_changed", callable_mp(this, &EditorNode::_viewport_resized));
@@ -5546,6 +5547,19 @@ void EditorNode::add_io_warning(const String &p_warning) {
 	}
 }
 
+void EditorNode::_pre_file_write(const String &p_path) {
+	if (!singleton) {
+		return;
+	}
+	String res_path = ProjectSettings::get_singleton()->localize_path(p_path);
+	if (!res_path.is_resource_file() || res_path.begins_with(ProjectSettings::get_singleton()->get_project_data_path())) {
+		return;
+	}
+	for (int i = 0; i < singleton->editor_data.get_editor_plugin_count(); i++) {
+		singleton->editor_data.get_editor_plugin(i)->pre_file_write(res_path);
+	}
+}
+
 bool EditorNode::find_recursive_resources(const Variant &p_variant, HashSet<Resource *> &r_resources_found) {
 	switch (p_variant.get_type()) {
 		case Variant::ARRAY: {
@@ -9592,6 +9606,7 @@ EditorNode::EditorNode() {
 	ImportDock::get_singleton()->initialize_import_options();
 
 	FileAccess::set_file_close_fail_notify_callback(_file_access_close_error_notify);
+	FileAccess::set_file_pre_write_notify_callback(&EditorNode::_pre_file_write);
 
 	print_handler.printfunc = _print_handler;
 	print_handler.userdata = this;

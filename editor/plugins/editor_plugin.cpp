@@ -409,6 +409,11 @@ void EditorPlugin::apply_changes() {
 	GDVIRTUAL_CALL(_apply_changes);
 }
 
+// Fired on the main thread right before the editor opens a res:// file for writing.
+void EditorPlugin::pre_file_write(const String &p_path) {
+	GDVIRTUAL_CALL(_pre_file_write, p_path);
+}
+
 void EditorPlugin::get_breakpoints(List<String> *p_breakpoints) {
 	PackedStringArray arr;
 	if (GDVIRTUAL_CALL(_get_breakpoints, arr)) {
@@ -704,6 +709,7 @@ void EditorPlugin::_bind_methods() {
 	GDVIRTUAL_BIND(_get_unsaved_status, "for_scene");
 	GDVIRTUAL_BIND(_save_external_data);
 	GDVIRTUAL_BIND(_apply_changes);
+	GDVIRTUAL_BIND(_pre_file_write, "path");
 	GDVIRTUAL_BIND(_get_breakpoints);
 	GDVIRTUAL_BIND(_set_window_layout, "configuration");
 	GDVIRTUAL_BIND(_get_window_layout, "configuration");

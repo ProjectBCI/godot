@@ -40,6 +40,7 @@
 #include "core/io/resource_uid.h"
 #include "core/object/class_db.h"
 #include "core/os/os.h"
+#include "core/os/thread.h"
 #include "core/os/time.h"
 
 Ref<FileAccess> FileAccess::create(AccessType p_access) {
@@ -170,6 +171,19 @@ Ref<FileAccess> FileAccess::open(const String &p_path, int p_mode_flags, Error *
 			return ret;
 		}
 	}
+
+#ifdef TOOLS_ENABLED
+	// Order is load-bearing: in_pre_write_notify is main-thread-only state, so it
+	// must not be read until Thread::is_main_thread() has passed.
+	if (pre_write_notify && (p_mode_flags & WRITE) && Thread::is_main_thread() && !in_pre_write_notify) {
+		// Let the editor (and through it, editor plugins) prepare the target
+		// before it is opened for writing, e.g. check it out of a VCS that keeps
+		// files read-only. Re-entrancy guard: the callee may write files itself.
+		in_pre_write_notify = true;
+		pre_write_notify(p_path);
+		in_pre_write_notify = false;
+	}
+#endif
 
 	ret = create_for_path(p_path);
 	Error err = ret->open_internal(p_path, p_mode_flags & ~SKIP_PACK);

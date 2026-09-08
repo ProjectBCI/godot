@@ -86,6 +86,7 @@ public:
 	};
 
 	typedef void (*FileCloseFailNotify)(const String &);
+	typedef void (*FilePreWriteNotify)(const String &);
 
 	typedef Ref<FileAccess> (*CreateFunc)();
 	bool big_endian = false;
@@ -117,6 +118,13 @@ protected:
 	virtual void _set_access_type(AccessType p_access);
 
 	static inline FileCloseFailNotify close_fail_notify = nullptr;
+
+#ifdef TOOLS_ENABLED
+	// Editor hook fired before a file is opened for writing (see FileAccess::open).
+	static inline FilePreWriteNotify pre_write_notify = nullptr;
+	// Main-thread only: FileAccess::open tests Thread::is_main_thread() before reading this.
+	static inline bool in_pre_write_notify = false;
+#endif
 
 #ifndef DISABLE_DEPRECATED
 	static Ref<FileAccess> _open_encrypted_bind_compat_98918(const String &p_path, ModeFlags p_mode_flags, const Vector<uint8_t> &p_key);
@@ -163,6 +171,10 @@ private:
 
 public:
 	static void set_file_close_fail_notify_callback(FileCloseFailNotify p_cbk) { close_fail_notify = p_cbk; }
+
+#ifdef TOOLS_ENABLED
+	static void set_file_pre_write_notify_callback(FilePreWriteNotify p_cbk) { pre_write_notify = p_cbk; }
+#endif
 
 	virtual bool is_open() const = 0; ///< true when file is open
 

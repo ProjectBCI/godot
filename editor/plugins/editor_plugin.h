@@ -137,6 +137,7 @@ protected:
 	GDVIRTUAL1RC(String, _get_unsaved_status, String)
 	GDVIRTUAL0(_save_external_data)
 	GDVIRTUAL0(_apply_changes)
+	GDVIRTUAL1(_pre_file_write, String)
 	GDVIRTUAL0RC(Vector<String>, _get_breakpoints)
 	GDVIRTUAL1(_set_window_layout, Ref<ConfigFile>)
 	GDVIRTUAL1(_get_window_layout, Ref<ConfigFile>)
@@ -210,6 +211,7 @@ public:
 	virtual String get_unsaved_status(const String &p_for_scene = "") const;
 	virtual void save_external_data(); // if editor references external resources/scenes, save them
 	virtual void apply_changes(); // if changes are pending in editor, apply them
+	virtual void pre_file_write(const String &p_path); // fired before any res:// file is opened for writing
 	virtual void get_breakpoints(List<String> *p_breakpoints);
 	virtual bool get_remove_list(List<Node *> *p_list);
 	virtual void set_window_layout(Ref<ConfigFile> p_layout);

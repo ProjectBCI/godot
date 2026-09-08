@@ -509,6 +509,8 @@ private:
 		singleton->dependency_errors[p_path].insert(p_dep + "::" + p_type);
 	}
 
+	static void _pre_file_write(const String &p_path);
+
 	static Ref<Texture2D> _file_dialog_get_icon(const String &p_path);
 	static Ref<Texture2D> _file_dialog_get_thumbnail(const String &p_path);
 	static void _file_dialog_thumbnail_callback(const String &p_path, const Ref<Texture2D> &p_preview, const Ref<Texture2D> &p_small_preview, Ref<ImageTexture> p_texture);
