@@ -362,6 +362,17 @@
 				Remember that you have to manage the visibility of all your editor controls manually.
 			</description>
 		</method>
+		<method name="_pre_file_write" qualifiers="virtual">
+			<return type="void" />
+			<param index="0" name="path" type="String" />
+			<description>
+				Called on the main thread right before a file under [code]res://[/code] (excluding the project data directory) is opened for writing through [FileAccess]: scene and resource saves, [ProjectSettings] saves, and any [method FileAccess.open] or [method ResourceSaver.save] made by editor code or by [code]@tool[/code] scripts. Use it to make [param path] writable first, for example by checking it out of a version control system that keeps files read-only. This is a notification: the write proceeds when the method returns.
+				[b]Note:[/b] This method may be called for opens that never write a byte (read-write modes) and for opens that subsequently fail.
+				[b]Note:[/b] Files written from inside this method do not trigger it again.
+				[b]Note:[/b] Do not save or load resources from this method; the caller may be in the middle of a save.
+				[b]Note:[/b] Not covered: writes performed on other threads (the filesystem scan and threaded reimports, which can write [code].uid[/code] and [code].import[/code] sidecars), and file moves, renames and deletions, which go through [DirAccess].
+			</description>
+		</method>
 		<method name="_run_scene" qualifiers="virtual const">
 			<return type="PackedStringArray" />
 			<param index="0" name="scene" type="String" />
