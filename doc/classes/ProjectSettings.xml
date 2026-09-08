@@ -1208,6 +1208,11 @@
 		</member>
 		<member name="editor/version_control/autoload_on_startup" type="bool" setter="" getter="" default="false">
 		</member>
+		<member name="editor/version_control/omit_uid_for_imported_resources" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], resource savers do not record the UID of external resources that are imported assets (files with an [code].import[/code] sidecar), and the references resolve by path instead. Imported assets keep their UID in that sidecar, so when the sidecar is excluded from version control every workspace generates its own value and saved scenes and resources differ between workspaces.
+			[b]Note:[/b] With this enabled, an imported asset moved outside the editor can no longer be located by UID; moves done in the editor still update references. Leave it disabled if you version [code].import[/code] files.
+			[b]Note:[/b] This setting only affects the editor.
+		</member>
 		<member name="editor/version_control/plugin_name" type="String" setter="" getter="" default="&quot;&quot;">
 		</member>
 		<member name="filesystem/import/blender/enabled" type="bool" setter="" getter="" default="true">

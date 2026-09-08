@@ -33,9 +33,24 @@
 #include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
 #include "core/io/missing_resource.h"
+#include "core/io/resource_importer.h"
 #include "core/object/class_db.h"
 #include "core/object/script_language.h"
 #include "scene/property_utils.h"
+
+#ifdef TOOLS_ENABLED
+// Imported assets keep their UID in the .import sidecar, which many teams do
+// not version; recording it in a saved file makes that file differ per
+// workspace. Opt-in via project setting: resolve such references by path.
+// ResourceFormatImporter::recognize_path() is the engine's own "is imported"
+// test (it checks for the .import sidecar).
+static bool _omit_uid_for_imported(bool p_setting_enabled, const String &p_res_path) {
+	if (!p_setting_enabled || !ResourceFormatImporter::get_singleton()) {
+		return false;
+	}
+	return ResourceFormatImporter::get_singleton()->recognize_path(p_res_path);
+}
+#endif
 
 void ResourceLoaderText::_printerr() {
 	ERR_PRINT(vformat("%s:%d - Parse Error: %s.", res_path, lines, error_text));
@@ -1014,6 +1029,10 @@ Error ResourceLoaderText::rename_dependencies(Ref<FileAccess> p_f, const String 
 
 	String base_path = local_path.get_base_dir();
 
+#ifdef TOOLS_ENABLED
+	const bool omit_imported_uids = bool(GLOBAL_GET("editor/version_control/omit_uid_for_imported_resources"));
+#endif
+
 	uint64_t tag_end = f->get_position();
 
 	while (true) {
@@ -1091,6 +1110,12 @@ Error ResourceLoaderText::rename_dependencies(Ref<FileAccess> p_f, const String 
 			String s = "[ext_resource type=\"" + type + "\"";
 
 			ResourceUID::ID uid = ResourceSaver::get_resource_id_for_path(path);
+#ifdef TOOLS_ENABLED
+			// `path` may have been made relative above; test the res:// form.
+			if (uid != ResourceUID::INVALID_ID && _omit_uid_for_imported(omit_imported_uids, path.begins_with("res://") ? path : base_path.path_join(path).simplify_path())) {
+				uid = ResourceUID::INVALID_ID;
+			}
+#endif
 			if (uid != ResourceUID::INVALID_ID) {
 				s += " uid=\"" + ResourceUID::get_singleton()->id_to_text(uid) + "\"";
 			}
@@ -1892,12 +1917,21 @@ Error ResourceFormatSaverTextInstance::save(const String &p_path, const Ref<Reso
 
 	sorted_er.sort();
 
+#ifdef TOOLS_ENABLED
+	const bool omit_imported_uids = bool(GLOBAL_GET("editor/version_control/omit_uid_for_imported_resources"));
+#endif
+
 	for (int i = 0; i < sorted_er.size(); i++) {
 		String p = sorted_er[i].resource->get_path();
 
 		String s = "[ext_resource type=\"" + sorted_er[i].resource->get_save_class() + "\"";
 
 		ResourceUID::ID uid = ResourceSaver::get_resource_id_for_path(p, false);
+#ifdef TOOLS_ENABLED
+		if (uid != ResourceUID::INVALID_ID && _omit_uid_for_imported(omit_imported_uids, p)) {
+			uid = ResourceUID::INVALID_ID;
+		}
+#endif
 		if (uid != ResourceUID::INVALID_ID) {
 			s += " uid=\"" + ResourceUID::get_singleton()->id_to_text(uid) + "\"";
 		}
