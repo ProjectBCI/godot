@@ -192,6 +192,15 @@ Color Light2D::get_shadow_color() const {
 	return shadow_color;
 }
 
+void Light2D::set_shadow_multiply(bool p_enable) {
+	shadow_multiply = p_enable;
+	RS::get_singleton()->canvas_light_set_shadow_multiply(canvas_light, shadow_multiply);
+}
+
+bool Light2D::is_shadow_multiply() const {
+	return shadow_multiply;
+}
+
 void Light2D::set_blend_mode(BlendMode p_mode) {
 	blend_mode = p_mode;
 	RS::get_singleton()->canvas_light_set_blend_mode(_get_light(), RSE::CanvasLightBlendMode(p_mode));
@@ -299,6 +308,9 @@ void Light2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_shadow_color", "shadow_color"), &Light2D::set_shadow_color);
 	ClassDB::bind_method(D_METHOD("get_shadow_color"), &Light2D::get_shadow_color);
 
+	ClassDB::bind_method(D_METHOD("set_shadow_multiply", "enable"), &Light2D::set_shadow_multiply);
+	ClassDB::bind_method(D_METHOD("is_shadow_multiply"), &Light2D::is_shadow_multiply);
+
 	ClassDB::bind_method(D_METHOD("set_blend_mode", "mode"), &Light2D::set_blend_mode);
 	ClassDB::bind_method(D_METHOD("get_blend_mode"), &Light2D::get_blend_mode);
 
@@ -320,6 +332,7 @@ void Light2D::_bind_methods() {
 	ADD_GROUP("Shadow", "shadow_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "shadow_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_shadow_enabled", "is_shadow_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "shadow_color"), "set_shadow_color", "get_shadow_color");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "shadow_multiply"), "set_shadow_multiply", "is_shadow_multiply");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "shadow_filter", PROPERTY_HINT_ENUM, "None (Fast),PCF5 (Average),PCF13 (Slow)"), "set_shadow_filter", "get_shadow_filter");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "shadow_filter_smooth", PROPERTY_HINT_RANGE, "0,64,0.1"), "set_shadow_smooth", "get_shadow_smooth");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "shadow_item_cull_mask", PROPERTY_HINT_LAYERS_2D_RENDER), "set_item_shadow_cull_mask", "get_item_shadow_cull_mask");

@@ -71,6 +71,9 @@
 		<member name="shadow_item_cull_mask" type="int" setter="set_item_shadow_cull_mask" getter="get_item_shadow_cull_mask" default="1">
 			The shadow mask. Used with [LightOccluder2D] to cast shadows. Only occluders with a matching [member CanvasItem.light_mask] will cast shadows. See also [member range_item_cull_mask], which affects which objects can [i]receive[/i] the light.
 		</member>
+		<member name="shadow_multiply" type="bool" setter="set_shadow_multiply" getter="is_shadow_multiply" default="false">
+			If [code]true[/code], shadowed areas receive this light's own contribution multiplied by [member shadow_color], so the texture's detail is preserved in shadow and [member shadow_color] acts as the tinted fraction of light that survives. If [code]false[/code], [member shadow_color] replaces the light's contribution as a flat color that ignores the lit texture.
+		</member>
 	</members>
 	<constants>
 		<constant name="SHADOW_FILTER_NONE" value="0" enum="ShadowFilter">

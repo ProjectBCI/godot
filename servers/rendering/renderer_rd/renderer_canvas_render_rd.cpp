@@ -570,6 +570,9 @@ void RendererCanvasRenderRD::canvas_render_items(RID p_to_render_target, Item *p
 			state.light_uniforms[index].flags |= l->shadow_filter << LIGHT_FLAGS_FILTER_SHIFT;
 			if (clight->shadow.enabled) {
 				state.light_uniforms[index].flags |= LIGHT_FLAGS_HAS_SHADOW;
+				if (l->shadow_multiply) {
+					state.light_uniforms[index].flags |= LIGHT_FLAGS_SHADOW_MULTIPLY;
+				}
 			}
 
 			l->render_index_cache = index;
@@ -640,6 +643,9 @@ void RendererCanvasRenderRD::canvas_render_items(RID p_to_render_target, Item *p
 			state.light_uniforms[index].flags |= l->shadow_filter << LIGHT_FLAGS_FILTER_SHIFT;
 			if (clight->shadow.enabled) {
 				state.light_uniforms[index].flags |= LIGHT_FLAGS_HAS_SHADOW;
+				if (l->shadow_multiply) {
+					state.light_uniforms[index].flags |= LIGHT_FLAGS_SHADOW_MULTIPLY;
+				}
 			}
 
 			if (clight->texture.is_valid()) {

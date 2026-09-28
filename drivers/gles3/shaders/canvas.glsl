@@ -499,6 +499,11 @@ vec4 light_shadow_compute(uint light_base, vec4 light_color, vec4 shadow_uv
 
 	shadow_color.a *= light_color.a; //respect light alpha
 
+	if (bool(light_array[light_base].flags & LIGHT_FLAGS_SHADOW_MULTIPLY)) {
+		// Shadow colour is the fraction of the (albedo-multiplied) light that survives in shadow.
+		shadow_color.rgb *= light_color.rgb;
+	}
+
 	return mix(light_color, shadow_color, shadow);
 }
 

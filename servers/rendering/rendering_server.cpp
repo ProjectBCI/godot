@@ -3417,6 +3417,7 @@ void RenderingServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("canvas_light_set_shadow_enabled", "light", "enabled"), &RenderingServer::canvas_light_set_shadow_enabled);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_shadow_filter", "light", "filter"), &RenderingServer::canvas_light_set_shadow_filter);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_shadow_color", "light", "color"), &RenderingServer::canvas_light_set_shadow_color);
+	ClassDB::bind_method(D_METHOD("canvas_light_set_shadow_multiply", "light", "enable"), &RenderingServer::canvas_light_set_shadow_multiply);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_shadow_smooth", "light", "smooth"), &RenderingServer::canvas_light_set_shadow_smooth);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_blend_mode", "light", "mode"), &RenderingServer::canvas_light_set_blend_mode);
 	ClassDB::bind_method(D_METHOD("canvas_light_set_interpolated", "light", "interpolated"), &RenderingServer::canvas_light_set_interpolated);

@@ -1098,6 +1098,7 @@ public:
 	FUNC2(canvas_light_set_shadow_enabled, RID, bool)
 	FUNC2(canvas_light_set_shadow_filter, RID, RSE::CanvasLightShadowFilter)
 	FUNC2(canvas_light_set_shadow_color, RID, const Color &)
+	FUNC2(canvas_light_set_shadow_multiply, RID, bool)
 	FUNC2(canvas_light_set_shadow_smooth, RID, float)
 
 	FUNC2(canvas_light_set_interpolated, RID, bool)

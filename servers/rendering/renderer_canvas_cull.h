@@ -335,6 +335,7 @@ public:
 	void canvas_light_set_shadow_enabled(RID p_light, bool p_enabled);
 	void canvas_light_set_shadow_filter(RID p_light, RSE::CanvasLightShadowFilter p_filter);
 	void canvas_light_set_shadow_color(RID p_light, const Color &p_color);
+	void canvas_light_set_shadow_multiply(RID p_light, bool p_enable);
 	void canvas_light_set_shadow_smooth(RID p_light, float p_smooth);
 
 	void canvas_light_set_interpolated(RID p_light, bool p_interpolated);

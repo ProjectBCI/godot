@@ -98,6 +98,7 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 		LIGHT_FLAGS_BLEND_MODE_MIX = (2 << 16),
 		LIGHT_FLAGS_BLEND_MODE_MASK = (3 << 16),
 		LIGHT_FLAGS_HAS_SHADOW = (1 << 20),
+		LIGHT_FLAGS_SHADOW_MULTIPLY = (1 << 21),
 		LIGHT_FLAGS_FILTER_SHIFT = 22
 
 	};

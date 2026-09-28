@@ -2289,6 +2289,13 @@ void RendererCanvasCull::canvas_light_set_shadow_color(RID p_light, const Color 
 	clight->shadow_color = p_color;
 }
 
+void RendererCanvasCull::canvas_light_set_shadow_multiply(RID p_light, bool p_enable) {
+	RendererCanvasRender::Light *clight = canvas_light_owner.get_or_null(p_light);
+	ERR_FAIL_NULL(clight);
+
+	clight->shadow_multiply = p_enable;
+}
+
 void RendererCanvasCull::canvas_light_set_shadow_smooth(RID p_light, float p_smooth) {
 	RendererCanvasRender::Light *clight = canvas_light_owner.get_or_null(p_light);
 	ERR_FAIL_NULL(clight);

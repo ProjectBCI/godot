@@ -194,6 +194,9 @@ void RasterizerCanvasGLES3::canvas_render_items(RID p_to_render_target, Item *p_
 
 			if (clight->shadow.enabled) {
 				state.light_uniforms[index].flags |= LIGHT_FLAGS_HAS_SHADOW;
+				if (l->shadow_multiply) {
+					state.light_uniforms[index].flags |= LIGHT_FLAGS_SHADOW_MULTIPLY;
+				}
 			}
 
 			l->render_index_cache = index;
@@ -265,6 +268,9 @@ void RasterizerCanvasGLES3::canvas_render_items(RID p_to_render_target, Item *p_
 
 			if (clight->shadow.enabled) {
 				state.light_uniforms[index].flags |= LIGHT_FLAGS_HAS_SHADOW;
+				if (l->shadow_multiply) {
+					state.light_uniforms[index].flags |= LIGHT_FLAGS_SHADOW_MULTIPLY;
+				}
 			}
 
 			if (clight->texture.is_valid()) {

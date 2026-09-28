@@ -77,6 +77,7 @@ public:
 		int shadow_buffer_size;
 		RSE::CanvasLightShadowFilter shadow_filter;
 		Color shadow_color;
+		bool shadow_multiply = false;
 		float shadow_smooth;
 
 		//void *texture_cache; // implementation dependent

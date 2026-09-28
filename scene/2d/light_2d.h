@@ -56,6 +56,7 @@ private:
 	bool shadow = false;
 	Color color = Color(1, 1, 1);
 	Color shadow_color = Color(0, 0, 0, 0);
+	bool shadow_multiply = false;
 	real_t height = 0.0;
 	real_t energy = 1.0;
 	int z_min = -1024;
@@ -123,6 +124,9 @@ public:
 
 	void set_shadow_color(const Color &p_shadow_color);
 	Color get_shadow_color() const;
+
+	void set_shadow_multiply(bool p_enable);
+	bool is_shadow_multiply() const;
 
 	void set_shadow_smooth(real_t p_amount);
 	real_t get_shadow_smooth() const;

@@ -913,6 +913,14 @@
 				Sets the canvas light's shadow's filter.
 			</description>
 		</method>
+		<method name="canvas_light_set_shadow_multiply">
+			<return type="void" />
+			<param index="0" name="light" type="RID" />
+			<param index="1" name="enable" type="bool" />
+			<description>
+				If [param enable] is [code]true[/code], the canvas light's shadow color multiplies the light's own contribution instead of replacing it with a flat color. See [member Light2D.shadow_multiply].
+			</description>
+		</method>
 		<method name="canvas_light_set_shadow_smooth">
 			<return type="void" />
 			<param index="0" name="light" type="RID" />
