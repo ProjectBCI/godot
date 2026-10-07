@@ -1144,33 +1144,29 @@ Error ProjectSettings::_save_settings_binary(const String &p_file, const RBMap<S
 }
 
 Error ProjectSettings::_save_settings_text(const String &p_file, const RBMap<String, List<String>> &p_props, const CustomMap &p_custom, const String &p_custom_features) {
-	Error err;
-	Ref<FileAccess> file = FileAccess::open(p_file, FileAccess::WRITE, &err);
+	String text;
+	text += "; Engine configuration file.\n";
+	text += "; It's best edited using the editor UI and not directly,\n";
+	text += "; since the parameters that go here are not all obvious.\n";
+	text += ";\n";
+	text += "; Format:\n";
+	text += ";   [section] ; section goes between []\n";
+	text += ";   param=value ; assign values to parameters\n";
+	text += "\n";
 
-	ERR_FAIL_COND_V_MSG(err != OK, err, vformat("Couldn't save project.godot - %s.", p_file));
-
-	file->store_line("; Engine configuration file.");
-	file->store_line("; It's best edited using the editor UI and not directly,");
-	file->store_line("; since the parameters that go here are not all obvious.");
-	file->store_line(";");
-	file->store_line("; Format:");
-	file->store_line(";   [section] ; section goes between []");
-	file->store_line(";   param=value ; assign values to parameters");
-	file->store_line("");
-
-	file->store_string("config_version=" + itos(CONFIG_VERSION) + "\n");
+	text += "config_version=" + itos(CONFIG_VERSION) + "\n";
 	if (!p_custom_features.is_empty()) {
-		file->store_string("custom_features=\"" + p_custom_features + "\"\n");
+		text += "custom_features=\"" + p_custom_features + "\"\n";
 	}
-	file->store_string("\n");
+	text += "\n";
 
 	for (const KeyValue<String, List<String>> &E : p_props) {
 		if (E.key != p_props.begin()->key) {
-			file->store_string("\n");
+			text += "\n";
 		}
 
 		if (!E.key.is_empty()) {
-			file->store_string("[" + E.key + "]\n\n");
+			text += "[" + E.key + "]\n\n";
 		}
 		for (const String &F : E.value) {
 			String key = F;
@@ -1186,9 +1182,30 @@ Error ProjectSettings::_save_settings_text(const String &p_file, const RBMap<Str
 
 			String vstr;
 			VariantWriter::write_to_string(value, vstr);
-			file->store_string(F.property_name_encode() + "=" + vstr + "\n");
+			text += F.property_name_encode() + "=" + vstr + "\n";
 		}
 	}
+
+	// Editor code and extensions call save() unconditionally (on startup, after
+	// toggling a plugin, after an import), so most saves would rewrite the file
+	// unchanged. Skip those: a no-op write still bumps the mtime, trips file
+	// watchers, and fails outright when version control keeps the file
+	// read-only until it is checked out. Line endings are ignored because a
+	// checkout may hold CRLF while this always writes LF.
+	if (FileAccess::exists(p_file)) {
+		Error read_err;
+		const String existing = FileAccess::get_file_as_string(p_file, &read_err);
+		if (read_err == OK && existing.remove_char('\r') == text) {
+			return OK;
+		}
+	}
+
+	Error err;
+	Ref<FileAccess> file = FileAccess::open(p_file, FileAccess::WRITE, &err);
+
+	ERR_FAIL_COND_V_MSG(err != OK, err, vformat("Couldn't save project.godot - %s.", p_file));
+
+	file->store_string(text);
 
 	return OK;
 }
