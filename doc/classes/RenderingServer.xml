@@ -4348,6 +4348,17 @@
 				[b]Note:[/b] If this is set to [code]0[/code], no positional shadows will be visible at all. This can improve performance significantly on low-end systems by reducing both the CPU and GPU load (as fewer draw calls are needed to draw the scene without shadows).
 			</description>
 		</method>
+		<method name="viewport_set_post_draw_callback">
+			<return type="void" />
+			<param index="0" name="viewport" type="RID" />
+			<param index="1" name="callback" type="Callable" />
+			<description>
+				Sets a [param callback] that is called on the rendering thread each frame the [param viewport] is actually drawn, right after it draws and before any viewport drawn later in the same frame. Viewports that are not drawn that frame skip it, for example while their update mode is [constant VIEWPORT_UPDATE_DISABLED] or when they are not visible. With the default single-threaded rendering model, this is the main thread, during [RenderingServer]'s drawing step.
+				The callback is intended for [RenderingDevice] work: work it submits sees this viewport's contents for the current frame, and viewports drawn after it see that work's results. On the Compatibility renderer there is no [RenderingDevice] to submit to.
+				A viewport holds a single callback: setting one replaces the previous one, and passing an invalid [Callable] clears it. Not called for viewports rendered through an XR interface ([member Viewport.use_xr]).
+				[b]Note:[/b] The callback runs in the middle of drawing the frame's viewports. It must not create or free viewports, and must not call [method force_draw].
+			</description>
+		</method>
 		<method name="viewport_set_render_direct_to_screen">
 			<return type="void" />
 			<param index="0" name="viewport" type="RID" />

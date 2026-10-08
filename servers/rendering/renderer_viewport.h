@@ -88,6 +88,7 @@ public:
 		RSE::ViewportEnvironmentMode disable_environment = RSE::VIEWPORT_ENVIRONMENT_INHERIT;
 		bool disable_3d = false;
 		bool measure_render_time = false;
+		Callable post_draw_callback;
 
 		bool snap_2d_transforms_to_pixel = false;
 		bool snap_2d_vertices_to_pixel = false;
@@ -292,6 +293,7 @@ public:
 	void viewport_set_measure_render_time(RID p_viewport, bool p_enable);
 	float viewport_get_measured_render_time_cpu(RID p_viewport) const;
 	float viewport_get_measured_render_time_gpu(RID p_viewport) const;
+	void viewport_set_post_draw_callback(RID p_viewport, const Callable &p_callback);
 
 	void viewport_set_snap_2d_transforms_to_pixel(RID p_viewport, bool p_enabled);
 	void viewport_set_snap_2d_vertices_to_pixel(RID p_viewport, bool p_enabled);

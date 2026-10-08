@@ -899,6 +899,7 @@ void RendererViewport::draw_viewports(bool p_swap_buffers) {
 				RSG::scene->set_debug_draw_mode(vp->debug_draw);
 
 				// and draw viewport
+				// (post_draw_callback is not invoked for XR viewports.)
 				_draw_viewport(vp);
 
 				// commit our eyes
@@ -949,6 +950,15 @@ void RendererViewport::draw_viewports(bool p_swap_buffers) {
 					}
 					blits->push_back(blit);
 				}
+			}
+
+			if (vp->post_draw_callback.is_valid()) {
+				// Render thread, after this viewport is recorded and before any later
+				// viewport in this pass draws. Called after the blit above has read
+				// what it needs, so the callback cannot change it. The callback runs
+				// inside this loop: it must not create or free viewports or call
+				// force_draw.
+				vp->post_draw_callback.call();
 			}
 		}
 
@@ -1587,6 +1597,13 @@ float RendererViewport::viewport_get_measured_render_time_gpu(RID p_viewport) co
 	ERR_FAIL_NULL_V(viewport, 0);
 
 	return double((viewport->time_gpu_end - viewport->time_gpu_begin) / 1000) / 1000.0;
+}
+
+void RendererViewport::viewport_set_post_draw_callback(RID p_viewport, const Callable &p_callback) {
+	Viewport *viewport = viewport_owner.get_or_null(p_viewport);
+	ERR_FAIL_NULL(viewport);
+
+	viewport->post_draw_callback = p_callback;
 }
 
 void RendererViewport::viewport_set_snap_2d_transforms_to_pixel(RID p_viewport, bool p_enabled) {
