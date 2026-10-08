@@ -74,6 +74,10 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 		INSTANCE_FLAGS_NINEPATCH_V_MODE_SHIFT = 11,
 
 		INSTANCE_FLAGS_SHADOW_MASKED_SHIFT = 13, // 16 bits.
+
+		// One bit per directional light 0..3 whose item cull mask excludes this item.
+		// The shadow mask never uses its top bit: an item takes at most MAX_LIGHTS_PER_ITEM - 1 lights.
+		INSTANCE_FLAGS_DIRECTIONAL_SKIP_SHIFT = 28, // 4 bits.
 	};
 
 	enum {
@@ -108,6 +112,7 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 		MAX_LIGHT_TEXTURES = 1024,
 		MAX_LIGHTS_PER_ITEM = 16,
 		MAX_LIGHTS_PER_RENDER = 256,
+		MAX_MASKED_DIRECTIONAL_LIGHTS = 4,
 	};
 
 	/****************/
@@ -650,6 +655,8 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 	TextureInfo default_texture_info;
 
 	bool using_directional_lights = false;
+	uint32_t directional_light_item_masks[MAX_MASKED_DIRECTIONAL_LIGHTS] = {};
+	uint32_t masked_directional_light_count = 0;
 	RID default_canvas_texture;
 
 	RID default_canvas_group_shader;

@@ -577,6 +577,12 @@ void RendererCanvasRenderRD::canvas_render_items(RID p_to_render_target, Item *p
 
 			l->render_index_cache = index;
 
+			if (index < MAX_MASKED_DIRECTIONAL_LIGHTS) {
+				directional_light_item_masks[index] = l->item_mask;
+			} else {
+				WARN_PRINT_ONCE("More than 4 DirectionalLight2Ds on one canvas: the extra lights ignore range_item_cull_mask and light every item.");
+			}
+
 			index++;
 			l = l->next_ptr;
 		}
@@ -584,6 +590,7 @@ void RendererCanvasRenderRD::canvas_render_items(RID p_to_render_target, Item *p
 		light_count = index;
 		directional_light_count = light_count;
 		using_directional_lights = directional_light_count > 0;
+		masked_directional_light_count = MIN(directional_light_count, (uint32_t)MAX_MASKED_DIRECTIONAL_LIGHTS);
 	}
 
 	//setup lights if exist
@@ -2394,6 +2401,12 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 
 		template_instance.flags |= light_count << INSTANCE_FLAGS_LIGHT_COUNT_SHIFT;
 		template_instance.flags |= shadow_mask << INSTANCE_FLAGS_SHADOW_MASKED_SHIFT;
+
+		for (uint32_t i = 0; i < masked_directional_light_count; i++) {
+			if (!(p_item->light_mask & directional_light_item_masks[i])) {
+				template_instance.flags |= 1u << (INSTANCE_FLAGS_DIRECTIONAL_SKIP_SHIFT + i);
+			}
+		}
 	}
 
 	bool use_lighting = (light_count > 0 || using_directional_lights);

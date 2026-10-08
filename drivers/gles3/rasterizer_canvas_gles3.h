@@ -60,6 +60,10 @@ class RasterizerCanvasGLES3 : public RendererCanvasRender {
 		INSTANCE_FLAGS_NINEPATCH_V_MODE_SHIFT = 11,
 
 		INSTANCE_FLAGS_SHADOW_MASKED_SHIFT = 13, // 16 bits.
+
+		// One bit per directional light 0..3 whose item cull mask excludes this item.
+		// The shadow mask never uses its top bit: an item takes at most MAX_LIGHTS_PER_ITEM - 1 lights.
+		INSTANCE_FLAGS_DIRECTIONAL_SKIP_SHIFT = 28, // 4 bits.
 	};
 
 	enum {
@@ -90,6 +94,7 @@ class RasterizerCanvasGLES3 : public RendererCanvasRender {
 		MAX_LIGHT_TEXTURES = 1024,
 		MAX_LIGHTS_PER_ITEM = 16,
 		DEFAULT_MAX_LIGHTS_PER_RENDER = 256,
+		MAX_MASKED_DIRECTIONAL_LIGHTS = 4,
 	};
 
 	/******************/
@@ -308,6 +313,8 @@ public:
 		int shadow_texture_size = 2048;
 
 		bool using_directional_lights = false;
+		uint32_t directional_light_item_masks[MAX_MASKED_DIRECTIONAL_LIGHTS] = {};
+		uint32_t masked_directional_light_count = 0;
 
 		RID current_tex;
 		RSE::CanvasItemTextureFilter current_filter_mode = RSE::CANVAS_ITEM_TEXTURE_FILTER_MAX;

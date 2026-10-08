@@ -201,6 +201,12 @@ void RasterizerCanvasGLES3::canvas_render_items(RID p_to_render_target, Item *p_
 
 			l->render_index_cache = index;
 
+			if (index < MAX_MASKED_DIRECTIONAL_LIGHTS) {
+				state.directional_light_item_masks[index] = l->item_mask;
+			} else {
+				WARN_PRINT_ONCE("More than 4 DirectionalLight2Ds on one canvas: the extra lights ignore range_item_cull_mask and light every item.");
+			}
+
 			index++;
 			l = l->next_ptr;
 		}
@@ -208,6 +214,7 @@ void RasterizerCanvasGLES3::canvas_render_items(RID p_to_render_target, Item *p_
 		light_count = index;
 		directional_light_count = light_count;
 		state.using_directional_lights = directional_light_count > 0;
+		state.masked_directional_light_count = MIN(directional_light_count, (uint32_t)MAX_MASKED_DIRECTIONAL_LIGHTS);
 	}
 
 	//setup lights if exist
@@ -872,6 +879,12 @@ void RasterizerCanvasGLES3::_record_item_commands(const Item *p_item, RID p_rend
 
 		base_flags |= light_count << INSTANCE_FLAGS_LIGHT_COUNT_SHIFT;
 		base_flags |= shadow_mask << INSTANCE_FLAGS_SHADOW_MASKED_SHIFT;
+
+		for (uint32_t i = 0; i < state.masked_directional_light_count; i++) {
+			if (!(p_item->light_mask & state.directional_light_item_masks[i])) {
+				base_flags |= 1u << (INSTANCE_FLAGS_DIRECTIONAL_SKIP_SHIFT + i);
+			}
+		}
 	}
 
 	bool lights_disabled = light_count == 0 && !state.using_directional_lights;

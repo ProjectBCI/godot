@@ -726,6 +726,9 @@ void main() {
 	// Directional Lights
 
 	for (uint i = 0u; i < directional_light_count; i++) {
+		if (i < MAX_MASKED_DIRECTIONAL_LIGHTS && bool(read_draw_data_flags & (1u << (INSTANCE_FLAGS_DIRECTIONAL_SKIP_SHIFT + i)))) {
+			continue;
+		}
 		uint light_base = i;
 
 		vec2 direction = light_array[light_base].position;
