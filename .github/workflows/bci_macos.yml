@@ -1,0 +1,11 @@
+name: BCI macOS build
+# One-off macOS build of the bci4 patch set on this throwaway branch.
+# Push-triggered because workflow_dispatch needs the file on the default branch.
+on:
+  push:
+    branches: [ci/bci4-macos]
+
+jobs:
+  macos-build:
+    name: macOS
+    uses: ./.github/workflows/macos_builds.yml
