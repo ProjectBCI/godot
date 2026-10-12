@@ -2355,6 +2355,21 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 
 	Color base_color = p_item->final_modulate;
 	bool use_linear_colors = p_render_target.use_linear_colors;
+	// Most commands in an item share one modulate (tile cells are rects with a white
+	// modulate times the item's), so remember the last conversion instead of paying
+	// three powf per command. Compared bitwise, so the result is exactly what
+	// srgb_to_linear() returns for that input.
+	Color linear_cache_in;
+	Color linear_cache_out;
+	bool linear_cache_valid = false;
+	auto to_linear = [&](const Color &p_color) -> Color {
+		if (!linear_cache_valid || memcmp(&p_color, &linear_cache_in, sizeof(Color)) != 0) {
+			linear_cache_in = p_color;
+			linear_cache_out = p_color.srgb_to_linear();
+			linear_cache_valid = true;
+		}
+		return linear_cache_out;
+	};
 	template_instance.instance_uniforms_ofs = static_cast<uint32_t>(p_item->instance_allocated_shader_uniforms_offset);
 
 	bool reclip = false;
@@ -2426,7 +2441,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 
 				Color modulated = rect->modulate * base_color;
 				if (use_linear_colors) {
-					modulated = modulated.srgb_to_linear();
+					modulated = to_linear(modulated);
 				}
 
 				bool has_blend = bool(rect->flags & CANVAS_RECT_LCD);
@@ -2577,7 +2592,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 
 				Color modulated = np->color * base_color;
 				if (use_linear_colors) {
-					modulated = modulated.srgb_to_linear();
+					modulated = to_linear(modulated);
 				}
 
 				instance_data->modulation[0] = modulated.r;
@@ -2646,7 +2661,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 
 				Color color = base_color;
 				if (use_linear_colors) {
-					color = color.srgb_to_linear();
+					color = to_linear(color);
 				}
 
 				instance_data->modulation[0] = color.r;
@@ -2709,7 +2724,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 					instance_data->uvs[j * 2 + 1] = primitive->uvs[j].y;
 					Color col = primitive->colors[j] * base_color;
 					if (use_linear_colors) {
-						col = col.srgb_to_linear();
+						col = to_linear(col);
 					}
 					instance_data->colors[j * 2 + 0] = (uint32_t(Math::make_half_float(col.g)) << 16) | Math::make_half_float(col.r);
 					instance_data->colors[j * 2 + 1] = (uint32_t(Math::make_half_float(col.a)) << 16) | Math::make_half_float(col.b);
@@ -2729,7 +2744,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 						instance_data->uvs[j * 2 + 1] = primitive->uvs[j + offset].y;
 						Color col = primitive->colors[j + offset] * base_color;
 						if (use_linear_colors) {
-							col = col.srgb_to_linear();
+							col = to_linear(col);
 						}
 						instance_data->colors[j * 2 + 0] = (uint32_t(Math::make_half_float(col.g)) << 16) | Math::make_half_float(col.r);
 						instance_data->colors[j * 2 + 1] = (uint32_t(Math::make_half_float(col.a)) << 16) | Math::make_half_float(col.b);
@@ -2847,7 +2862,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 
 				Color modulated = modulate * base_color;
 				if (use_linear_colors) {
-					modulated = modulated.srgb_to_linear();
+					modulated = to_linear(modulated);
 				}
 
 				instance_data->modulation[0] = modulated.r;
