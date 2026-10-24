@@ -32,6 +32,7 @@
 
 TEST_FORCE_LINK(test_node)
 
+#include "core/input/input_event.h"
 #include "core/io/file_access.h"
 #include "core/io/resource_saver.h"
 #include "core/object/class_db.h"
@@ -916,6 +917,184 @@ TEST_CASE("[SceneTree][Node] Test the process priority") {
 	memdelete(node2);
 	memdelete(node3);
 	memdelete(node4);
+}
+
+class GroupCallProbeNode : public Node {
+	GDCLASS(GroupCallProbeNode, Node);
+
+public:
+	static constexpr int NOTIFICATION_PROBE = 10000;
+
+	enum Dispatch {
+		DISPATCH_NONE,
+		DISPATCH_NOTIFY_GROUP,
+		DISPATCH_CALL_GROUP,
+		DISPATCH_SET_GROUP,
+		DISPATCH_INPUT,
+	};
+
+	int process_counter = 0;
+	int probe_counter = 0;
+	int call_counter = 0;
+	int probe_value = 0;
+	int input_counter = 0;
+
+	// One-shot actions. On the next process notification: re-add readd_node, then send dispatch_after
+	// to the "probe" group. On the next probe notification: free free_on_probe.
+	Node *readd_node = nullptr;
+	Dispatch dispatch_after = DISPATCH_NONE;
+	Node *free_on_probe = nullptr;
+
+	void probe_call() { call_counter++; }
+	void set_probe_value(int p_value) { probe_value = p_value; }
+	int get_probe_value() const { return probe_value; }
+
+protected:
+	static void _bind_methods() {
+		ClassDB::bind_method(D_METHOD("probe_call"), &GroupCallProbeNode::probe_call);
+		ClassDB::bind_method(D_METHOD("set_probe_value", "value"), &GroupCallProbeNode::set_probe_value);
+		ClassDB::bind_method(D_METHOD("get_probe_value"), &GroupCallProbeNode::get_probe_value);
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "probe_value"), "set_probe_value", "get_probe_value");
+	}
+
+	void _notification(int p_what) {
+		switch (p_what) {
+			case NOTIFICATION_PROCESS: {
+				process_counter++;
+				_on_process();
+			} break;
+			case NOTIFICATION_PROBE: {
+				probe_counter++;
+				if (free_on_probe) {
+					memdelete(free_on_probe);
+					free_on_probe = nullptr;
+				}
+			} break;
+		}
+	}
+
+	virtual void input(const Ref<InputEvent> &) override {
+		input_counter++;
+	}
+
+private:
+	void _on_process() {
+		if (readd_node) {
+			Node *parent = readd_node->get_parent();
+			parent->remove_child(readd_node);
+			parent->add_child(readd_node);
+			readd_node = nullptr;
+		}
+		const Dispatch dispatch = dispatch_after;
+		dispatch_after = DISPATCH_NONE;
+		switch (dispatch) {
+			case DISPATCH_NONE:
+				break;
+			case DISPATCH_NOTIFY_GROUP:
+				get_tree()->notify_group("probe", NOTIFICATION_PROBE);
+				break;
+			case DISPATCH_CALL_GROUP:
+				get_tree()->call_group("probe", "probe_call");
+				break;
+			case DISPATCH_SET_GROUP:
+				get_tree()->set_group("probe", "probe_value", 7);
+				break;
+			case DISPATCH_INPUT: {
+				Ref<InputEventKey> key;
+				key.instantiate();
+				key->set_keycode(Key::A);
+				key->set_pressed(true);
+				get_tree()->get_root()->push_input(key);
+			} break;
+		}
+	}
+};
+
+TEST_CASE("[SceneTree][Node] Nodes removed during a group call or process pass") {
+	GDREGISTER_CLASS(GroupCallProbeNode);
+	Window *root = SceneTree::get_singleton()->get_root();
+
+	GroupCallProbeNode *first = memnew(GroupCallProbeNode);
+	GroupCallProbeNode *second = memnew(GroupCallProbeNode);
+	GroupCallProbeNode *third = memnew(GroupCallProbeNode);
+	const ObjectID ids[] = { first->get_instance_id(), second->get_instance_id(), third->get_instance_id() };
+	int priority = 0;
+	for (GroupCallProbeNode *n : { first, second, third }) {
+		root->add_child(n);
+		n->add_to_group("probe");
+		n->set_process_priority(priority++);
+	}
+
+	SUBCASE("A node freed during a group call is skipped by that call") {
+		first->free_on_probe = second;
+		SceneTree::get_singleton()->notify_group("probe", GroupCallProbeNode::NOTIFICATION_PROBE);
+
+		CHECK(ObjectDB::get_instance(ids[1]) == nullptr);
+		CHECK_EQ(1, first->probe_counter);
+		CHECK_EQ(1, third->probe_counter);
+	}
+
+	SUBCASE("A node freed by a nested group call is skipped by the nested call and by the process pass") {
+		for (GroupCallProbeNode *n : { first, second, third }) {
+			n->set_process(true);
+		}
+		first->dispatch_after = GroupCallProbeNode::DISPATCH_NOTIFY_GROUP;
+		first->free_on_probe = third;
+		SceneTree::get_singleton()->process(0);
+
+		// Both the process pass and the nested group call copied their lists before the free.
+		CHECK(ObjectDB::get_instance(ids[2]) == nullptr);
+		CHECK_EQ(1, first->probe_counter);
+		CHECK_EQ(1, second->probe_counter);
+		CHECK_EQ(1, first->process_counter);
+		CHECK_EQ(1, second->process_counter);
+	}
+
+	SUBCASE("A node re-added during a process pass is skipped by that pass but reached by later dispatches") {
+		const GroupCallProbeNode::Dispatch dispatches[] = {
+			GroupCallProbeNode::DISPATCH_NOTIFY_GROUP,
+			GroupCallProbeNode::DISPATCH_CALL_GROUP,
+			GroupCallProbeNode::DISPATCH_SET_GROUP,
+			GroupCallProbeNode::DISPATCH_INPUT,
+		};
+		for (GroupCallProbeNode::Dispatch dispatch : dispatches) {
+			for (GroupCallProbeNode *n : { first, second, third }) {
+				n->set_process(n == first);
+				n->set_process_input(true);
+			}
+			first->readd_node = second;
+			first->dispatch_after = dispatch;
+			SceneTree::get_singleton()->process(0);
+		}
+
+		// Each dispatch copied its list after the re-add, so it must reach the node.
+		for (GroupCallProbeNode *n : { first, second, third }) {
+			CHECK_EQ(1, n->probe_counter);
+			CHECK_EQ(1, n->call_counter);
+			CHECK_EQ(7, n->probe_value);
+			CHECK_EQ(1, n->input_counter);
+		}
+	}
+
+	SUBCASE("A node re-added during a process pass is skipped by that pass and processed by the next") {
+		first->set_process(true);
+		second->set_process(true);
+		first->readd_node = second;
+		SceneTree::get_singleton()->process(0);
+
+		// The process pass copied its list before the removal, so it still skips the node.
+		CHECK_EQ(1, first->process_counter);
+		CHECK_EQ(0, second->process_counter);
+
+		SceneTree::get_singleton()->process(0);
+		CHECK_EQ(1, second->process_counter);
+	}
+
+	for (const ObjectID &id : ids) {
+		if (Object *obj = ObjectDB::get_instance(id)) {
+			memdelete(obj);
+		}
+	}
 }
 
 } // namespace TestNode

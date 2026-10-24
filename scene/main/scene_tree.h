@@ -182,8 +182,20 @@ private:
 
 	// Safety for when a node is deleted while a group is being called.
 
+	// Each removal gets a new serial. A dispatch notes the serial when it copies its node list and
+	// skips only nodes removed after that: a node allocated at a freed node's address, or re-added,
+	// is not skipped by a later copy.
 	int nodes_removed_on_group_call_lock = 0;
-	HashSet<Node *> nodes_removed_on_group_call; // Skip erased nodes.
+	uint64_t nodes_removed_on_group_call_serial = 0;
+	HashMap<Node *, uint64_t> nodes_removed_on_group_call; // Skip erased nodes.
+
+	_FORCE_INLINE_ bool _was_node_removed_since(Node *p_node, uint64_t p_serial) const {
+		if (nodes_removed_on_group_call_serial == p_serial) {
+			return false; // Nothing was removed since the copy.
+		}
+		HashMap<Node *, uint64_t>::ConstIterator E = nodes_removed_on_group_call.find(p_node);
+		return E && E->value > p_serial;
+	}
 
 	List<ObjectID> delete_queue;
 

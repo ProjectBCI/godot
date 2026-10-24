@@ -163,7 +163,7 @@ void SceneTree::node_removed(Node *p_node) {
 	}
 	emit_signal(node_removed_name, p_node);
 	if (nodes_removed_on_group_call_lock) {
-		nodes_removed_on_group_call.insert(p_node);
+		nodes_removed_on_group_call[p_node] = ++nodes_removed_on_group_call_serial;
 	}
 }
 
@@ -360,6 +360,7 @@ RequiredResult<Window> SceneTree::get_root() const {
 
 void SceneTree::call_group_flagsp(uint32_t p_call_flags, const StringName &p_group, const StringName &p_function, const Variant **p_args, int p_argcount) {
 	Vector<Node *> nodes_copy;
+	uint64_t removed_serial = 0;
 
 	{
 		_THREAD_SAFE_METHOD_
@@ -395,6 +396,7 @@ void SceneTree::call_group_flagsp(uint32_t p_call_flags, const StringName &p_gro
 
 		_update_group_order(g);
 		nodes_copy = g.nodes;
+		removed_serial = nodes_removed_on_group_call_serial;
 	}
 
 	Node **gr_nodes = nodes_copy.ptrw();
@@ -407,7 +409,7 @@ void SceneTree::call_group_flagsp(uint32_t p_call_flags, const StringName &p_gro
 
 	if (p_call_flags & GROUP_CALL_REVERSE) {
 		for (int i = gr_node_count - 1; i >= 0; i--) {
-			if (nodes_removed_on_group_call_lock && nodes_removed_on_group_call.has(gr_nodes[i])) {
+			if (_was_node_removed_since(gr_nodes[i], removed_serial)) {
 				continue;
 			}
 
@@ -425,7 +427,7 @@ void SceneTree::call_group_flagsp(uint32_t p_call_flags, const StringName &p_gro
 
 	} else {
 		for (int i = 0; i < gr_node_count; i++) {
-			if (nodes_removed_on_group_call_lock && nodes_removed_on_group_call.has(gr_nodes[i])) {
+			if (_was_node_removed_since(gr_nodes[i], removed_serial)) {
 				continue;
 			}
 
@@ -453,6 +455,7 @@ void SceneTree::call_group_flagsp(uint32_t p_call_flags, const StringName &p_gro
 
 void SceneTree::notify_group_flags(uint32_t p_call_flags, const StringName &p_group, int p_notification) {
 	Vector<Node *> nodes_copy;
+	uint64_t removed_serial = 0;
 	{
 		_THREAD_SAFE_METHOD_
 		HashMap<StringName, SceneTreeGroup>::Iterator E = group_map.find(p_group);
@@ -467,6 +470,7 @@ void SceneTree::notify_group_flags(uint32_t p_call_flags, const StringName &p_gr
 		_update_group_order(g);
 
 		nodes_copy = g.nodes;
+		removed_serial = nodes_removed_on_group_call_serial;
 	}
 
 	Node **gr_nodes = nodes_copy.ptrw();
@@ -479,7 +483,7 @@ void SceneTree::notify_group_flags(uint32_t p_call_flags, const StringName &p_gr
 
 	if (p_call_flags & GROUP_CALL_REVERSE) {
 		for (int i = gr_node_count - 1; i >= 0; i--) {
-			if (nodes_removed_on_group_call.has(gr_nodes[i])) {
+			if (_was_node_removed_since(gr_nodes[i], removed_serial)) {
 				continue;
 			}
 
@@ -492,7 +496,7 @@ void SceneTree::notify_group_flags(uint32_t p_call_flags, const StringName &p_gr
 
 	} else {
 		for (int i = 0; i < gr_node_count; i++) {
-			if (nodes_removed_on_group_call.has(gr_nodes[i])) {
+			if (_was_node_removed_since(gr_nodes[i], removed_serial)) {
 				continue;
 			}
 
@@ -515,6 +519,7 @@ void SceneTree::notify_group_flags(uint32_t p_call_flags, const StringName &p_gr
 
 void SceneTree::set_group_flags(uint32_t p_call_flags, const StringName &p_group, const String &p_name, const Variant &p_value) {
 	Vector<Node *> nodes_copy;
+	uint64_t removed_serial = 0;
 	{
 		_THREAD_SAFE_METHOD_
 
@@ -530,6 +535,7 @@ void SceneTree::set_group_flags(uint32_t p_call_flags, const StringName &p_group
 		_update_group_order(g);
 
 		nodes_copy = g.nodes;
+		removed_serial = nodes_removed_on_group_call_serial;
 	}
 	Node **gr_nodes = nodes_copy.ptrw();
 	int gr_node_count = nodes_copy.size();
@@ -541,7 +547,7 @@ void SceneTree::set_group_flags(uint32_t p_call_flags, const StringName &p_group
 
 	if (p_call_flags & GROUP_CALL_REVERSE) {
 		for (int i = gr_node_count - 1; i >= 0; i--) {
-			if (nodes_removed_on_group_call.has(gr_nodes[i])) {
+			if (_was_node_removed_since(gr_nodes[i], removed_serial)) {
 				continue;
 			}
 
@@ -554,7 +560,7 @@ void SceneTree::set_group_flags(uint32_t p_call_flags, const StringName &p_group
 
 	} else {
 		for (int i = 0; i < gr_node_count; i++) {
-			if (nodes_removed_on_group_call.has(gr_nodes[i])) {
+			if (_was_node_removed_since(gr_nodes[i], removed_serial)) {
 				continue;
 			}
 
@@ -1199,13 +1205,14 @@ void SceneTree::_process_group(ProcessGroup *p_group, bool p_physics) {
 
 	// Make a copy, so if nodes are added/removed from process, this does not break
 	Vector<Node *> nodes_copy = nodes;
+	const uint64_t removed_serial = nodes_removed_on_group_call_serial;
 
 	uint32_t node_count = nodes_copy.size();
 	Node **nodes_ptr = (Node **)nodes_copy.ptr(); // Force cast, pointer will not change.
 
 	for (uint32_t i = 0; i < node_count; i++) {
 		Node *n = nodes_ptr[i];
-		if (nodes_removed_on_group_call.has(n)) {
+		if (_was_node_removed_since(n, removed_serial)) {
 			// Node may have been removed during process, skip it.
 			// Keep in mind removals can only happen on the main thread.
 			continue;
@@ -1429,6 +1436,7 @@ void SceneTree::_add_node_to_process_group(Node *p_node, Node *p_owner) {
 
 void SceneTree::_call_input_pause(const StringName &p_group, CallInputType p_call_type, const Ref<InputEvent> &p_input, Viewport *p_viewport) {
 	Vector<Node *> nodes_copy;
+	uint64_t removed_serial = 0;
 	{
 		_THREAD_SAFE_METHOD_
 
@@ -1446,6 +1454,7 @@ void SceneTree::_call_input_pause(const StringName &p_group, CallInputType p_cal
 		//copy, so copy on write happens in case something is removed from process while being called
 		//performance is not lost because only if something is added/removed the vector is copied.
 		nodes_copy = g.nodes;
+		removed_serial = nodes_removed_on_group_call_serial;
 	}
 
 	int gr_node_count = nodes_copy.size();
@@ -1464,7 +1473,7 @@ void SceneTree::_call_input_pause(const StringName &p_group, CallInputType p_cal
 		}
 
 		Node *n = gr_nodes[i];
-		if (nodes_removed_on_group_call.has(n)) {
+		if (_was_node_removed_since(n, removed_serial)) {
 			continue;
 		}
 
