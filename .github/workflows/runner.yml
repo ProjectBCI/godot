@@ -1,5 +1,5 @@
 name: 🔗 GHA
-on: [push, pull_request, merge_group, workflow_dispatch]
+on: [workflow_dispatch]  # ci/bci8-macos: push must not start the full matrix (its static checks use third-party actions the fork's Actions policy blocks). bci_macos.yml builds macOS.
 
 concurrency:
   group: ${{ github.workflow }}|${{ github.ref_name }}

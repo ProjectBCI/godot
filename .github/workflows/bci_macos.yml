@@ -1,0 +1,132 @@
+name: BCI macOS build
+# macOS build of the BCI fork (bci/4.7.2 + this CI commit) for the Broken Cadence
+# team: editor, template_debug and template_release, universal (x86_64 + arm64).
+# Mirrors Tools/Engine/build-godot.ps1: production=yes, BUILD_NAME from engine.json.
+# Push-triggered because workflow_dispatch needs the file on the default branch.
+on:
+  push:
+    branches: [ci/bci8-macos]
+
+env:
+  BUILD_NAME: bci8
+  SCONS_FLAGS: production=yes module_text_server_fb_enabled=yes
+
+jobs:
+  build:
+    runs-on: macos-26
+    name: ${{ matrix.target }} (${{ matrix.arch }})
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [editor, template_debug, template_release]
+        arch: [x86_64, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Setup Python and SCons
+        uses: ./.github/actions/godot-deps
+
+      - name: Download pre-built ANGLE and AccessKit
+        run: |
+          python ./misc/scripts/install_angle.py
+          python3 ./misc/scripts/install_accesskit.py
+
+      - name: Setup Vulkan SDK
+        run: sh misc/scripts/install_vulkan_sdk_macos.sh
+
+      - name: Compilation
+        run: |
+          if [ "${{ matrix.target }}" != "editor" ]; then
+            # Keep editor code out of export templates, as the upstream build action does.
+            rm -rf editor
+          fi
+          scons platform=macos target=${{ matrix.target }} arch=${{ matrix.arch }} $SCONS_FLAGS \
+            vulkan=yes accesskit=yes angle=yes debug_symbols=no
+          ls -l bin/
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: bin-${{ matrix.target }}-${{ matrix.arch }}
+          path: bin/godot.macos.${{ matrix.target }}.${{ matrix.arch }}
+          retention-days: 7
+
+  package:
+    needs: build
+    runs-on: macos-26
+    name: Package (universal)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: bin-*
+          path: parts
+          merge-multiple: true
+
+      - name: Lipo, bundle and sign
+        run: |
+          set -e
+          V=4.7.2-stable-$BUILD_NAME
+          mkdir -p out
+          for t in editor template_debug template_release; do
+            lipo -create parts/godot.macos.$t.x86_64 parts/godot.macos.$t.arm64 -output parts/godot.macos.$t.universal
+            strip parts/godot.macos.$t.universal
+            chmod +x parts/godot.macos.$t.universal
+          done
+
+          # Editor: Godot.app, laid out as platform_macos_builders.generate_bundle does.
+          # It runs from a terminal as well (Godot.app/Contents/MacOS/Godot), which is the
+          # macOS stand-in for the Windows _console exe.
+          APP=out/Godot.app
+          mkdir -p $APP/Contents/MacOS
+          rsync -a --exclude Info.plist misc/dist/macos_tools.app/Contents/ $APP/Contents/
+          cp parts/godot.macos.editor.universal $APP/Contents/MacOS/Godot
+          sed -e "s/\$short_version/4.7.2/g" -e "s/\$version/4.7.2.stable.$BUILD_NAME/g" \
+              -e "s/org\.godotengine\.godot/org.godotengine.godot.$BUILD_NAME/g" \
+              misc/dist/macos/editor_info_plist.template > $APP/Contents/Info.plist
+          # Ad-hoc signature: arm64 refuses to run unsigned code, and strip/lipo invalidated
+          # the linker's. Not notarized: first launch needs right-click > Open or xattr -cr.
+          codesign --force --deep --options=runtime --entitlements misc/dist/macos/editor.entitlements -s - $APP
+          (cd out && ditto -c -k --sequesterRsrc --keepParent Godot.app Godot_v${V}_macos.universal.zip)
+
+          # Export templates: macos.zip, the name the macOS exporter looks for.
+          T=out/macos_template.app
+          cp -R misc/dist/macos_template.app $T
+          mkdir -p $T/Contents/MacOS
+          cp parts/godot.macos.template_release.universal $T/Contents/MacOS/godot_macos_release.universal
+          cp parts/godot.macos.template_debug.universal $T/Contents/MacOS/godot_macos_debug.universal
+          codesign --force -s - $T/Contents/MacOS/godot_macos_release.universal
+          codesign --force -s - $T/Contents/MacOS/godot_macos_debug.universal
+          (cd out && zip -qry macos.zip macos_template.app)
+
+          # Bare universal binaries too, named like the Windows ones in engine.json.
+          for t in editor template_debug template_release; do
+            cp parts/godot.macos.$t.universal out/Godot_v${V}_macos_$t.universal
+            codesign --force -s - out/Godot_v${V}_macos_$t.universal
+          done
+          rm -rf $T $APP
+          ls -l out
+
+      - name: Smoke test
+        run: |
+          V=4.7.2-stable-$BUILD_NAME
+          for t in editor template_debug template_release; do
+            ver=$(out/Godot_v${V}_macos_$t.universal --version --headless 2>/dev/null | tail -n1)
+            echo "$t: $ver"
+            case "$ver" in *"$BUILD_NAME"*) ;; *) echo "::error::$t --version lacks $BUILD_NAME"; exit 1;; esac
+          done
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v7
+        with:
+          name: godot-4.7.2-bci8-macos
+          path: out/*
+          retention-days: 60
