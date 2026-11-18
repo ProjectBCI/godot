@@ -39,6 +39,9 @@
 #include "tests/test_utils.h"
 
 #ifdef TOOLS_ENABLED
+#include "../gdscript.h"
+#include "core/config/project_settings.h"
+#include "core/io/dir_access.h"
 #include "core/os/os.h"
 #endif
 
@@ -110,6 +113,61 @@ TEST_CASE("[Modules][GDScript] Loading keeps ResourceCache and GDScriptCache in 
 	CHECK(!TestGDScriptCacheAccessor::has_shallow(path));
 	CHECK(TestGDScriptCacheAccessor::has_full(path));
 }
+
+#ifdef TOOLS_ENABLED
+TEST_CASE("[Modules][GDScript] Scripts under tool script path prefixes run as tool scripts") {
+	GDScriptLanguage::get_singleton()->init();
+	// Paths are localized the way ResourceLoader stores them, so the prefix matches the script's path.
+	const String dir = ProjectSettings::get_singleton()->localize_path(TestUtils::get_temp_path("tool_script_paths"));
+	const String forced_dir = dir.path_join("forced");
+	DirAccess::make_dir_recursive_absolute(forced_dir);
+	const String forced_path = forced_dir.path_join("forced.gd");
+	const String plain_path = dir.path_join("plain.gd");
+	for (const String &path : { forced_path, plain_path }) {
+		Ref<FileAccess> fa = FileAccess::open(path, FileAccess::ModeFlags::WRITE);
+		REQUIRE(fa.is_valid());
+		fa->store_string("extends RefCounted\n\nclass Inner:\n\textends RefCounted\n");
+		fa->close();
+	}
+
+	CHECK_FALSE_MESSAGE(ScriptServer::is_tool_script_path(forced_path), "No prefixes: nothing is forced.");
+
+	Vector<String> prefixes;
+	prefixes.push_back(forced_dir + "/");
+	ScriptServer::set_tool_script_path_prefixes(prefixes);
+	CHECK(ScriptServer::is_tool_script_path(forced_path));
+	CHECK_FALSE(ScriptServer::is_tool_script_path(plain_path));
+
+	// Load as the editor does: scripting disabled, so only tool scripts can be instantiated.
+	ScriptServer::set_scripting_enabled(false);
+	Ref<GDScript> forced = ResourceLoader::load(forced_path);
+	Ref<GDScript> plain = ResourceLoader::load(plain_path);
+	ScriptServer::set_scripting_enabled(true);
+
+	CHECK(forced.is_valid());
+	CHECK(plain.is_valid());
+	if (forced.is_valid()) {
+		CHECK_MESSAGE(forced->is_tool(), vformat("A script under a prefix is a tool script without @tool (script path \"%s\", prefix \"%s\").", forced->get_script_path(), prefixes[0]));
+		ScriptServer::set_scripting_enabled(false);
+		CHECK_MESSAGE(forced->can_instantiate(), "A forced script is not a placeholder with scripting disabled.");
+		ScriptServer::set_scripting_enabled(true);
+		const Ref<GDScript> *inner = forced->get_subclasses().getptr("Inner");
+		CHECK(inner != nullptr);
+		if (inner != nullptr) {
+			CHECK_MESSAGE((*inner)->is_tool(), "Inner classes of a forced script are tool scripts.");
+		}
+	}
+	if (plain.is_valid()) {
+		CHECK_FALSE_MESSAGE(plain->is_tool(), "A script outside every prefix keeps its own @tool state.");
+		ScriptServer::set_scripting_enabled(false);
+		CHECK_FALSE(plain->can_instantiate());
+		ScriptServer::set_scripting_enabled(true);
+	}
+
+	ScriptServer::set_tool_script_path_prefixes(Vector<String>());
+	CHECK_FALSE(ScriptServer::is_tool_script_path(forced_path));
+}
+#endif // TOOLS_ENABLED
 
 TEST_CASE("[Modules][GDScript] Validate built-in API") {
 	GDScriptLanguage *lang = GDScriptLanguage::get_singleton();

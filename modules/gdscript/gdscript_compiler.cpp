@@ -2746,7 +2746,8 @@ Error GDScriptCompiler::_prepare_compilation(GDScript *p_script, const GDScriptP
 
 	p_script->clearing = false;
 
-	p_script->tool = parser->is_tool();
+	// `--tool-script-paths` forces tool mode by the main script's path, so inner classes follow it.
+	p_script->tool = parser->is_tool() || ScriptServer::is_tool_script_path(main_script->get_script_path());
 	p_script->_is_abstract = p_class->is_abstract;
 
 	if (p_script->local_name != StringName()) {

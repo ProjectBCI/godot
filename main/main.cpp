@@ -563,6 +563,7 @@ void Main::print_help(const char *p_binary) {
 	print_help_option("-e, --editor", "Start the editor instead of running the scene.\n", CLI_OPTION_AVAILABILITY_EDITOR);
 	print_help_option("-p, --project-manager", "Start the project manager, even if a project is auto-detected.\n", CLI_OPTION_AVAILABILITY_EDITOR);
 	print_help_option("--recovery-mode", "Start the editor in recovery mode, which disables features that can typically cause startup crashes, such as tool scripts, editor plugins, GDExtension addons, and others.\n", CLI_OPTION_AVAILABILITY_EDITOR);
+	print_help_option("--tool-script-paths <prefixes>", "Run scripts whose path begins with one of the given comma-separated prefixes (e.g. \"res://addons/gut/,res://tests/\") as if they had @tool. For running test frameworks inside the editor.\n", CLI_OPTION_AVAILABILITY_EDITOR);
 	print_help_option("--debug-server <uri>", "Start the editor debug server (<protocol>://<host/IP>[:port], e.g. tcp://127.0.0.1:6007)\n", CLI_OPTION_AVAILABILITY_EDITOR);
 	print_help_option("--dap-port <port>", "Use the specified port for the GDScript Debug Adapter Protocol. Recommended port range [1024, 49151].\n", CLI_OPTION_AVAILABILITY_EDITOR);
 #if defined(MODULE_GDSCRIPT_ENABLED) && !defined(GDSCRIPT_NO_LSP)
@@ -1602,6 +1603,21 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 			project_manager = true;
 		} else if (arg == "--recovery-mode") { // Enables recovery mode.
 			recovery_mode = true;
+		} else if (arg == "--tool-script-paths") { // Run scripts under these path prefixes as tool scripts.
+			if (N) {
+				Vector<String> prefixes;
+				for (const String &prefix : N->get().split(",", false)) {
+					const String stripped = prefix.strip_edges();
+					if (!stripped.is_empty()) {
+						prefixes.push_back(stripped);
+					}
+				}
+				ScriptServer::set_tool_script_path_prefixes(prefixes);
+				N = N->next();
+			} else {
+				OS::get_singleton()->print("Missing tool script path prefixes argument, aborting.\n");
+				goto error;
+			}
 		} else if (arg == "--debug-server") {
 			if (N) {
 				debug_server_uri = N->get();

@@ -843,7 +843,7 @@ Error GDScript::reload(bool p_keep_state) {
 		return ERR_PARSE_ERROR;
 	}
 
-	can_run = ScriptServer::is_scripting_enabled() || parser.is_tool();
+	can_run = ScriptServer::is_scripting_enabled() || parser.is_tool() || ScriptServer::is_tool_script_path(get_script_path());
 
 	GDScriptCompiler compiler;
 	err = compiler.compile(&parser, this, p_keep_state);
@@ -2837,7 +2837,7 @@ String GDScriptLanguage::_get_global_class_name(const String &p_path, String *r_
 		*r_is_abstract = c->is_abstract;
 	}
 	if (r_is_tool) {
-		*r_is_tool = parser.is_tool();
+		*r_is_tool = parser.is_tool() || ScriptServer::is_tool_script_path(p_path);
 	}
 	return c->identifier != nullptr ? String(c->identifier->name) : String();
 }

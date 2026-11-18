@@ -56,6 +56,9 @@ class ScriptServer {
 
 	static bool scripting_enabled;
 	static bool reload_scripts_on_save;
+#ifdef TOOLS_ENABLED
+	static Vector<String> tool_script_path_prefixes;
+#endif
 
 	struct GlobalScriptClass {
 		StringName language;
@@ -72,6 +75,11 @@ class ScriptServer {
 public:
 	static void set_scripting_enabled(bool p_enabled);
 	static bool is_scripting_enabled();
+	// Scripts whose path begins with one of these prefixes run as if they were
+	// tool scripts (`--tool-script-paths`). Set once at startup, before any
+	// script loads; always false outside editor builds.
+	static void set_tool_script_path_prefixes(const Vector<String> &p_prefixes);
+	static bool is_tool_script_path(const String &p_path);
 	_FORCE_INLINE_ static int get_language_count() { return _language_count; }
 	static ScriptLanguage *get_language(int p_idx);
 	static ScriptLanguage *get_language_for_extension(const String &p_extension);

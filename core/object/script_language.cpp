@@ -47,6 +47,9 @@ thread_local bool ScriptServer::thread_entered = false;
 
 bool ScriptServer::scripting_enabled = true;
 bool ScriptServer::reload_scripts_on_save = false;
+#ifdef TOOLS_ENABLED
+Vector<String> ScriptServer::tool_script_path_prefixes;
+#endif
 
 // These need to be the last static variables in this file, since we're exploiting the reverse-order destruction of static variables.
 static bool is_program_exiting = false;
@@ -216,6 +219,31 @@ void ScriptServer::set_scripting_enabled(bool p_enabled) {
 
 bool ScriptServer::is_scripting_enabled() {
 	return scripting_enabled;
+}
+
+void ScriptServer::set_tool_script_path_prefixes(const Vector<String> &p_prefixes) {
+#ifdef TOOLS_ENABLED
+	tool_script_path_prefixes.clear();
+	for (const String &prefix : p_prefixes) {
+		if (!prefix.is_empty()) {
+			tool_script_path_prefixes.push_back(prefix);
+		}
+	}
+#endif
+}
+
+bool ScriptServer::is_tool_script_path(const String &p_path) {
+#ifdef TOOLS_ENABLED
+	if (p_path.is_empty()) {
+		return false;
+	}
+	for (const String &prefix : tool_script_path_prefixes) {
+		if (p_path.begins_with(prefix)) {
+			return true;
+		}
+	}
+#endif
+	return false;
 }
 
 ScriptLanguage *ScriptServer::get_language(int p_idx) {
