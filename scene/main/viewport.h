@@ -505,6 +505,9 @@ private:
 
 	void _update_mouse_over(const Ref<InputEventMouse> &p_mm);
 	virtual void _update_mouse_over(Vector2 p_pos);
+
+	static inline bool hover_from_event_position = false;
+
 	virtual void _mouse_leave_viewport();
 
 	virtual bool _can_consume_input_events() const { return true; }
@@ -536,6 +539,11 @@ protected:
 	void _validate_property(PropertyInfo &p_property) const;
 
 public:
+	// Test tooling (--event-driven-hover): native windows take mouse hover from the
+	// events they receive instead of from the window the OS cursor is over.
+	static void set_hover_from_event_position(bool p_enabled) { hover_from_event_position = p_enabled; }
+	static bool is_hover_from_event_position() { return hover_from_event_position; }
+
 	void canvas_parent_mark_dirty(Node *p_node);
 	void canvas_item_top_level_changed();
 

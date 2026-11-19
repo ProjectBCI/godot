@@ -482,6 +482,56 @@ TEST_CASE("[SceneTree][Viewport] Controls and InputEvent handling") {
 	}
 
 	// Unit tests for Viewport::_gui_input_event (Mouse Motion)
+	SUBCASE("[Viewport][GuiInputEvent] Native window hover from pushed events, OS cursor outside the window.") {
+		// With native windows, hover is taken from the window the OS cursor is over
+		// (root gui.windowmanager_window_over, set only by DisplayServer window
+		// mouse enter/exit events). Pushed events into a window the cursor is not
+		// over then neither hover nor focus anything; --event-driven-hover
+		// (Viewport::set_hover_from_event_position) makes them work like real input.
+		root->set_embedding_subwindows(false);
+		// Move the OS cursor off the window: the mock sends WINDOW_EVENT_MOUSE_EXIT.
+		SEND_GUI_MOUSE_MOTION_EVENT(on_outside, MouseButtonMask::NONE, Key::NONE);
+
+		Ref<InputEventMouseMotion> motion;
+		motion.instantiate();
+		motion->set_position(on_b);
+		motion->set_global_position(on_b);
+		Ref<InputEventMouseButton> press;
+		press.instantiate();
+		press->set_position(on_b);
+		press->set_global_position(on_b);
+		press->set_button_index(MouseButton::LEFT);
+		press->set_button_mask(MouseButtonMask::LEFT);
+		press->set_pressed(true);
+		Ref<InputEventMouseButton> release = press->duplicate();
+		release->set_button_mask(MouseButtonMask::NONE);
+		release->set_pressed(false);
+
+		SUBCASE("[Viewport][GuiInputEvent] Off by default: pushed events neither hover nor focus.") {
+			root->push_input(motion);
+			root->push_input(press);
+			root->push_input(release);
+			const bool hovered = node_b->mouse_over;
+			const bool focused = node_b->has_focus();
+			root->set_embedding_subwindows(true);
+			CHECK_FALSE(hovered);
+			CHECK_FALSE(focused);
+		}
+
+		SUBCASE("[Viewport][GuiInputEvent] --event-driven-hover: pushed events hover and focus like real input.") {
+			Viewport::set_hover_from_event_position(true);
+			root->push_input(motion);
+			const bool hovered = node_b->mouse_over;
+			root->push_input(press);
+			root->push_input(release);
+			const bool focused = node_b->has_focus();
+			Viewport::set_hover_from_event_position(false);
+			root->set_embedding_subwindows(true);
+			CHECK(hovered);
+			CHECK(focused);
+		}
+	}
+
 	SUBCASE("[Viewport][GuiInputEvent] Mouse Motion") {
 		// FIXME: Tooltips are not yet tested. They likely require an internal clock.
 

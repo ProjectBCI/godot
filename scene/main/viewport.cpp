@@ -3260,6 +3260,11 @@ void Viewport::_update_mouse_over(const Ref<InputEventMouse> &p_mm) {
 	if (get_tree()->get_root()->is_embedding_subwindows() || is_sub_viewport()) {
 		// Use embedder logic for calculating mouse position.
 		_update_mouse_over(p_mm->get_position());
+	} else if (hover_from_event_position) {
+		// Native Window, --event-driven-hover: the event's own position sets this
+		// window's hover, wherever the OS cursor is. Lets pushed input drive the UI
+		// exactly like real input without depending on the real cursor.
+		_update_mouse_over(p_mm->get_position());
 	} else {
 		// Native Window: Use DisplayServer logic for calculating mouse position.
 		Window *receiving_window = get_tree()->get_root()->gui.windowmanager_window_over;
